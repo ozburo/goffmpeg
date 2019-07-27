@@ -11,10 +11,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"context"
 
-	"github.com/xfrr/goffmpeg/ffmpeg"
-	"github.com/xfrr/goffmpeg/models"
-	"github.com/xfrr/goffmpeg/utils"
+	"github.com/ozburo/goffmpeg/ffmpeg"
+	"github.com/ozburo/goffmpeg/models"
+	"github.com/ozburo/goffmpeg/utils"
 )
 
 // Transcoder Main struct
@@ -79,7 +80,7 @@ func (t Transcoder) GetCommand() []string {
 }
 
 // Initialize Init the transcoding process
-func (t *Transcoder) Initialize(inputPath string, outputPath string) error {
+func (t *Transcoder) Initialize(inputPaths []string, outputPath string) error {
 	var err error
 	var out bytes.Buffer
 	var Metadata models.Metadata
@@ -93,71 +94,79 @@ func (t *Transcoder) Initialize(inputPath string, outputPath string) error {
 		}
 	}
 
-	if inputPath == "" {
-		return errors.New("error on transcoder.Initialize: inputPath missing")
-	}
-
-	command := []string{"-i", inputPath, "-print_format", "json", "-show_format", "-show_streams", "-show_error"}
-
-	cmd := exec.Command(cfg.FfprobeBin, command...)
-	cmd.Stdout = &out
-
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("error executing (%s) | error: %s", command, err)
-	}
-
-	if err = json.Unmarshal([]byte(out.String()), &Metadata); err != nil {
-		return err
+	if len(inputPaths) == 0 {
+		return errors.New("error on transcoder.Initialize: inputPaths missing")
 	}
 
 	// Set new Mediafile
 	MediaFile := new(models.Mediafile)
-	MediaFile.SetMetadata(Metadata)
-	MediaFile.SetInputPath(inputPath)
 	MediaFile.SetOutputPath(outputPath)
+
+	for _, inputPath := range inputPaths {
+		command := []string{"-i", inputPath, "-print_format", "json", "-show_format", "-show_streams", "-show_error"}
+
+		cmd := exec.Command(cfg.FfprobeBin, command...)
+		cmd.Stdout = &out
+
+		err = cmd.Run()
+		if err != nil {
+			return fmt.Errorf("error executing (%s) | error: %s", command, err)
+		}
+
+		if err = json.Unmarshal([]byte(out.String()), &Metadata); err != nil {
+			return err
+		}
+
+		// Set individual Mediafile Metadata
+		MediaFile.SetMetadata(Metadata)
+		MediaFile.SetInputPath(inputPath)
+	}
 
 	// Set transcoder configuration
 	t.SetMediaFile(MediaFile)
 	t.SetConfiguration(cfg)
 
 	return nil
-
 }
 
 // Run Starts the transcoding process
 func (t *Transcoder) Run(progress bool) <-chan error {
+	return t.run(nil, progress)
+}
+
+// Run With Context Starts the transcoding process with given context
+func (t *Transcoder) RunWithContext(ctx context.Context, progress bool) <-chan error {
+	return t.run(ctx, progress)
+}
+
+// Shared run function
+func (t *Transcoder) run(ctx context.Context, progress bool) <-chan error {
 	done := make(chan error)
 	command := t.GetCommand()
+
+	var proc *exec.Cmd
 
 	if !progress {
 		command = append([]string{"-nostats", "-loglevel", "0"}, command...)
 	}
-
-	proc := exec.Command(t.configuration.FfmpegBin, command...)
+	if ctx == nil {
+		proc = exec.Command(t.configuration.FfmpegBin, command...)
+	} else {
+		proc = exec.CommandContext(ctx, t.configuration.FfmpegBin, command...)
+	}
 	if progress {
 		errStream, err := proc.StderrPipe()
 		if err != nil {
 			fmt.Println("Progress not available: " + err.Error())
 		} else {
-			t.stdErrPipe = errStream
+			t.SetProcessStderrPipe(errStream)
 		}
 	}
 
-	stdin, err := proc.StdinPipe()
-	if nil != err {
-		fmt.Println("Stdin not available: " + err.Error())
-	}
-
-	t.stdStdinPipe = stdin
-
 	out := &bytes.Buffer{}
-	if progress {
-		proc.Stdout = out
-	}
+	proc.Stdout = out
 
-	err = proc.Start()
-
+	err := proc.Start()
 	t.SetProcess(proc)
 	go func(err error, out *bytes.Buffer) {
 		if err != nil {
@@ -264,8 +273,9 @@ func (t Transcoder) Output() <-chan models.Progress {
 					}
 				}
 
+				// TODO: Use all files in Metadata for calculation
 				timesec := utils.DurToSec(currentTime)
-				dursec, _ := strconv.ParseFloat(t.MediaFile().Metadata().Format.Duration, 64)
+				dursec, _ := strconv.ParseFloat(t.MediaFile().Metadata()[0].Format.Duration, 64)
 				//live stream check
 				if dursec != 0 {
 					// Progress calculation

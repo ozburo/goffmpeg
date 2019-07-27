@@ -39,7 +39,7 @@ type Mediafile struct {
 	muxDelay              string
 	seekUsingTsInput      bool
 	seekTimeInput         string
-	inputPath             string
+	inputPaths            []string
 	hideBanner            bool
 	outputPath            string
 	outputFormat          string
@@ -53,11 +53,13 @@ type Mediafile struct {
 	httpMethod            string
 	httpKeepAlive         bool
 	streamIds             map[int]string
-	metadata              Metadata
+	metadata              []Metadata
 	videoFilter           string
 	audioFilter           string
 	skipVideo             bool
 	skipAudio             bool
+	shortest              bool
+	streamLoop            int
 }
 
 /*** SETTERS ***/
@@ -186,80 +188,88 @@ func (m *Mediafile) SetStrict(v int) {
 	m.strict = v
 }
 
-func (m *Mediafile) SetSeekUsingTsInput(val bool) {
-	m.seekUsingTsInput = val
+func (m *Mediafile) SetSeekUsingTsInput(v bool) {
+	m.seekUsingTsInput = v
 }
 
-func (m *Mediafile) SetCopyTs(val bool) {
-	m.copyTs = val
+func (m *Mediafile) SetCopyTs(v bool) {
+	m.copyTs = v
 }
 
-func (m *Mediafile) SetInputPath(val string) {
-	m.inputPath = val
+func (m *Mediafile) SetInputPath(v string) {
+	m.inputPaths = append(m.inputPaths, v)
 }
 
-func (m *Mediafile) SetHideBanner(val bool) {
-	m.hideBanner = val
+func (m *Mediafile) SetHideBanner(v bool) {
+	m.hideBanner = v
 }
 
-func (m *Mediafile) SetMuxDelay(val string) {
-	m.muxDelay = val
+func (m *Mediafile) SetMuxDelay(v string) {
+	m.muxDelay = v
 }
 
-func (m *Mediafile) SetOutputPath(val string) {
-	m.outputPath = val
+func (m *Mediafile) SetOutputPath(v string) {
+	m.outputPath = v
 }
 
-func (m *Mediafile) SetOutputFormat(val string) {
-	m.outputFormat = val
+func (m *Mediafile) SetOutputFormat(v string) {
+	m.outputFormat = v
 }
 
-func (m *Mediafile) SetNativeFramerateInput(val bool) {
-	m.nativeFramerateInput = val
+func (m *Mediafile) SetNativeFramerateInput(v bool) {
+	m.nativeFramerateInput = v
 }
 
-func (m *Mediafile) SetRtmpLive(val string) {
-	m.rtmpLive = val
+func (m *Mediafile) SetRtmpLive(v string) {
+	m.rtmpLive = v
 }
 
-func (m *Mediafile) SetHlsListSize(val int) {
-	m.hlsListSize = val
+func (m *Mediafile) SetHlsListSize(v int) {
+	m.hlsListSize = v
 }
 
-func (m *Mediafile) SetHlsSegmentDuration(val int) {
-	m.hlsSegmentDuration = val
+func (m *Mediafile) SetHlsSegmentDuration(v int) {
+	m.hlsSegmentDuration = v
 }
 
-func (m *Mediafile) SetHlsPlaylistType(val string) {
-	m.hlsPlaylistType = val
+func (m *Mediafile) SetHlsPlaylistType(v string) {
+	m.hlsPlaylistType = v
 }
 
-func (m *Mediafile) SetHttpMethod(val string) {
-	m.httpMethod = val
+func (m *Mediafile) SetHttpMethod(v string) {
+	m.httpMethod = v
 }
 
-func (m *Mediafile) SetHttpKeepAlive(val bool) {
-	m.httpKeepAlive = val
+func (m *Mediafile) SetHttpKeepAlive(v bool) {
+	m.httpKeepAlive = v
 }
 
-func (m *Mediafile) SetInputInitialOffset(val string) {
-	m.inputInitialOffset = val
+func (m *Mediafile) SetInputInitialOffset(v string) {
+	m.inputInitialOffset = v
 }
 
-func (m *Mediafile) SetStreamIds(val map[int]string) {
-	m.streamIds = val
+func (m *Mediafile) SetStreamIds(v map[int]string) {
+	m.streamIds = v
 }
 
-func (m *Mediafile) SetSkipVideo(val bool) {
-	m.skipVideo = val
+func (m *Mediafile) SetSkipVideo(v bool) {
+	m.skipVideo = v
 }
 
-func (m *Mediafile) SetSkipAudio(val bool) {
-	m.skipAudio = val
+func (m *Mediafile) SetSkipAudio(v bool) {
+	m.skipAudio = v
+}
+
+func (m *Mediafile) SetShortest(v bool) {
+	m.shortest = v
+}
+
+func (m *Mediafile) SetStreamLoop(v int) {
+	m.streamLoop = v
 }
 
 func (m *Mediafile) SetMetadata(v Metadata) {
-	m.metadata = v
+	m.metadata = append(m.metadata, v)
 }
 
 /*** GETTERS ***/
@@ -405,8 +415,8 @@ func (m *Mediafile) CopyTs() bool {
 	return m.copyTs
 }
 
-func (m *Mediafile) InputPath() string {
-	return m.inputPath
+func (m *Mediafile) InputPaths() []string {
+	return m.inputPaths
 }
 
 func (m *Mediafile) HideBanner() bool {
@@ -465,7 +475,15 @@ func (m *Mediafile) SkipAudio() bool {
 	return m.skipAudio
 }
 
-func (m *Mediafile) Metadata() Metadata {
+func (m *Mediafile) Shortest() bool {
+	return m.shortest
+}
+
+func (m *Mediafile) StreamLoop() int {
+	return m.streamLoop
+}
+
+func (m *Mediafile) Metadata() []Metadata {
 	return m.metadata
 }
 
@@ -480,9 +498,9 @@ func (m *Mediafile) ToStrCommand() []string {
 		"DurationInput",
 		"RtmpLive",
 		"InputInitialOffset",
-		"InputPath",
+		"StreamLoop",
+		"InputPaths",
 		"HideBanner",
-
 		"Aspect",
 		"Resolution",
 		"FrameRate",
@@ -521,13 +539,13 @@ func (m *Mediafile) ToStrCommand() []string {
 		"VideoFilter",
 		"HttpMethod",
 		"HttpKeepAlive",
+		"Shortest",
 		"OutputPath",
 	}
 	for _, name := range opts {
 		opt := reflect.ValueOf(m).MethodByName(fmt.Sprintf("Obtain%s", name))
 		if (opt != reflect.Value{}) {
 			result := opt.Call([]reflect.Value{})
-
 			if val, ok := result[0].Interface().([]string); ok {
 				strCommand = append(strCommand, val...)
 			}
@@ -552,7 +570,6 @@ func (m *Mediafile) ObtainVideoFilter() []string {
 }
 
 func (m *Mediafile) ObtainAspect() []string {
-	// Set aspect
 	if m.resolution != "" {
 		resolution := strings.Split(m.resolution, "x")
 		if len(resolution) != 0 {
@@ -568,8 +585,12 @@ func (m *Mediafile) ObtainAspect() []string {
 	return nil
 }
 
-func (m *Mediafile) ObtainInputPath() []string {
-	return []string{"-i", m.inputPath}
+func (m *Mediafile) ObtainInputPaths() []string {
+	result := []string{}
+	for _, inputPath := range m.inputPaths {
+		result = append(result, []string{"-i", inputPath}...)
+	}
+	return result
 }
 
 func (m *Mediafile) ObtainHideBanner() []string {
@@ -825,7 +846,10 @@ func (m *Mediafile) ObtainInputInitialOffset() []string {
 }
 
 func (m *Mediafile) ObtainHlsListSize() []string {
-	return []string{"-hls_list_size", fmt.Sprintf("%d", m.hlsListSize)}
+	if m.hlsListSize != 0 {
+		return []string{"-hls_list_size", fmt.Sprintf("%d", m.hlsListSize)}
+	}
+	return nil
 }
 
 func (m *Mediafile) ObtainHlsSegmentDuration() []string {
@@ -875,6 +899,21 @@ func (m *Mediafile) ObtainStreamIds() []string {
 			result = append(result, []string{"-streamid", fmt.Sprintf("%d:%s", i, val)}...)
 		}
 		return result
+	}
+	return nil
+}
+
+func (m *Mediafile) ObtainShortest() []string {
+	if m.shortest {
+		return []string{"-shortest"}
+	} else {
+		return nil
+	}
+}
+
+func (m *Mediafile) ObtainStreamLoop() []string {
+	if m.streamLoop != 0 {
+		return []string{"-stream_loop", fmt.Sprintf("%d", m.streamLoop)}
 	}
 	return nil
 }

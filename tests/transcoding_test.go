@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"github.com/xfrr/goffmpeg/transcoder"
+	"github.com/ozburo/goffmpeg/transcoder"
 )
 
 func TestInputNotFound(t *testing.T) {
