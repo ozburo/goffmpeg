@@ -159,14 +159,24 @@ func (t *Transcoder) run(ctx context.Context, progress bool) <-chan error {
 		if err != nil {
 			fmt.Println("Progress not available: " + err.Error())
 		} else {
-			t.SetProcessStderrPipe(errStream)
+			t.stdErrPipe = errStream
 		}
 	}
 
-	out := &bytes.Buffer{}
-	proc.Stdout = out
+	stdin, err := proc.StdinPipe()
+	if nil != err {
+		fmt.Println("Stdin not available: " + err.Error())
+	}
 
-	err := proc.Start()
+	t.stdStdinPipe = stdin
+
+	out := &bytes.Buffer{}
+	if progress {
+		proc.Stdout = out
+	}
+
+	err = proc.Start()
+
 	t.SetProcess(proc)
 	go func(err error, out *bytes.Buffer) {
 		if err != nil {
