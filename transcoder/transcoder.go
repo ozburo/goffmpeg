@@ -82,8 +82,6 @@ func (t Transcoder) GetCommand() []string {
 // Initialize Init the transcoding process
 func (t *Transcoder) Initialize(inputPaths []string, outputPath string) error {
 	var err error
-	var out bytes.Buffer
-	var Metadata models.Metadata
 
 	cfg := t.configuration
 
@@ -105,6 +103,7 @@ func (t *Transcoder) Initialize(inputPaths []string, outputPath string) error {
 	for _, inputPath := range inputPaths {
 		command := []string{"-i", inputPath, "-print_format", "json", "-show_format", "-show_streams", "-show_error"}
 
+		var out bytes.Buffer
 		cmd := exec.Command(cfg.FfprobeBin, command...)
 		cmd.Stdout = &out
 
@@ -113,6 +112,7 @@ func (t *Transcoder) Initialize(inputPaths []string, outputPath string) error {
 			return fmt.Errorf("error executing (%s) | error: %s", command, err)
 		}
 
+		var Metadata models.Metadata
 		if err = json.Unmarshal([]byte(out.String()), &Metadata); err != nil {
 			return err
 		}
