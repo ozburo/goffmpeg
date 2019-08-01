@@ -60,6 +60,7 @@ type Mediafile struct {
 	skipAudio             bool
 	shortest              bool
 	streamLoop            int
+	inputFormat           string
 }
 
 /*** SETTERS ***/
@@ -270,6 +271,10 @@ func (m *Mediafile) SetStreamLoop(v int) {
 
 func (m *Mediafile) SetMetadata(v Metadata) {
 	m.metadata = append(m.metadata, v)
+}
+
+func (m *Mediafile) SetInputFormat(v string) {
+	m.inputFormat = v
 }
 
 /*** GETTERS ***/
@@ -499,6 +504,7 @@ func (m *Mediafile) ToStrCommand() []string {
 		"RtmpLive",
 		"InputInitialOffset",
 		"StreamLoop",
+		"InputFormat",
 		"InputPaths",
 		"HideBanner",
 		"Aspect",
@@ -551,7 +557,6 @@ func (m *Mediafile) ToStrCommand() []string {
 			}
 		}
 	}
-
 	return strCommand
 }
 
@@ -914,6 +919,13 @@ func (m *Mediafile) ObtainShortest() []string {
 func (m *Mediafile) ObtainStreamLoop() []string {
 	if m.streamLoop != 0 {
 		return []string{"-stream_loop", fmt.Sprintf("%d", m.streamLoop)}
+	}
+	return nil
+}
+
+func (m *Mediafile) ObtainInputFormat() []string {
+	if m.inputFormat != "" {
+		return []string{"-f", m.inputFormat}
 	}
 	return nil
 }
